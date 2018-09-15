@@ -1,5 +1,5 @@
 import sys
-
+import difflib
 from itertools import islice
 
 import utterances
@@ -18,7 +18,61 @@ def window(seq, n=2):
         yield result
 
 
-def matches_incremental(it, minimum_matches, return_count=True, ids=None):
+def levenshtein_dist(s1, s2):
+    """Input two strings, returns levenstein distance between the two"""
+
+    s1 = ' ' + s1
+    s2 = ' ' + s2
+    d = {}
+    S1 = len(s1)
+    S2 = len(s2)
+    for i in range(S1):
+        d[i, 0] = i
+    for j in range(S2):
+        d[0, j] = j
+    for j in range(1, S2):
+        for i in range(1, S1):
+            if s1[i] == s2[j]:
+                d[i, j] = d[i - 1, j - 1]
+            else:
+                d[i, j] = min(d[i - 1, j] + 1, d[i, j - 1] + 1, d[i - 1, j - 1] + 1)
+    return d[S1 - 1, S2 - 1]
+
+
+def levenshtein(A, B, overlap):
+    """ 2 lists of strings and an integar
+    returns the number of strings in common, adjusted by levenstein distance"""
+    match_count = 0
+    for word in A:
+        if isinstance(word, type(None)):
+            continue
+
+        for word_ in B:
+            if isinstance(word_, type(None)):
+                continue
+            if levenshtein_dist(word, word_) <= overlap:
+                match_count += 1
+                break
+    return match_count
+
+
+def matches_wrapper(utterance_A, utterance_B, match_type, minimum_matches, overlap):
+    if match_type is None:
+        if len(set(utterance_A).intersection(set(utterance_B))) >= minimum_matches:
+            return True
+    elif match_type == 'levenshtein':
+        if levenshtein(utterance_A, utterance_B, overlap) >= minimum_matches:
+            return True
+    elif match_type == 'difflib':
+        # some entries are None
+        utterance_A = ' '.join([i for i in utterance_A if i])
+        utterance_B = ' '.join([i for i in utterance_B if i])
+        distance = difflib.SequenceMatcher(lambda x: x == ' ', utterance_A, utterance_B).ratio()
+        if distance >= overlap:
+            return True
+
+
+def matches_incremental(it, minimum_matches, match_type, overlap, return_count=True, ids=None):
     """Given an iterator returns the minimum matches."""
 
     matches = 0
@@ -27,7 +81,7 @@ def matches_incremental(it, minimum_matches, return_count=True, ids=None):
     for count, i in enumerate(it):
         pairs = window(i)
         for k, j in pairs:
-            if len(set(k).intersection(set(j))) >= minimum_matches:
+            if matches_wrapper(k, j, match_type, minimum_matches, overlap):
                 matches += 1
                 if ids:
                     matches_list.append((ids[count], i))
@@ -43,7 +97,7 @@ def matches_incremental(it, minimum_matches, return_count=True, ids=None):
         return matches_list
 
 
-def matches_anchor(it, minimum_matches, return_count=True, ids=None):
+def matches_anchor(it, minimum_matches, match_type, overlap, return_count=True, ids=None):
     """Returns varation set matches using anchor method"""
 
     matches = 0
@@ -54,7 +108,7 @@ def matches_anchor(it, minimum_matches, return_count=True, ids=None):
         first = next(utterances)
 
         for utterance in utterances:
-            if len(set(first).intersection(set(utterance))) >= minimum_matches:
+            if matches_wrapper(first, utterance, match_type, minimum_matches, overlap):
                 matches += 1
                 if ids:
                     matches_list.append((ids[count], i))
@@ -87,53 +141,111 @@ def convert_varseta_format(results):
 
         return_list.append(dummy_list)
 
-    return return_list 
+    return return_list
 
 
 def decode_args(args):
     """Parses commandline args"""
 
-    if len(args) != 4:
-        sys.exit("Please read notes.txt for command line usage")
-    try:
-        return args[1], int(args[2]), int(args[3])
-    except:
-        sys.exit("Please read notes.txt for command line usage")
+    exit_text = "Please read notes.txt for command line usage"
+
+    if len(args) == 4:
+        try:
+            return args[1], int(args[2]), int(args[3]), None, None
+        except ValueError:
+            sys.exit(exit_text)
+
+    elif len(args) == 6:
+        if args[4] == "levenshtein":
+            try:
+                return args[1], int(args[2]), int(args[3]), args[4], int(args[5])
+            except ValueError:
+                sys.exit(exit_text)
+
+        elif args[4] == "difflib":
+            try:
+                return args[1], int(args[2]), int(args[3]), args[4], float(args[5])
+            except ValueError:
+                sys.exit(exit_text)
+        else:
+            sys.exit(exit_text)
+
+    sys.exit("Please read notes.txt for command line usage")
 
 
 def main():
 
-    algorithm, window_eval, min_matches = decode_args(sys.argv)
+    args = decode_args(sys.argv)
 
-    to_do = [
-        ("DATA/Swedish_MINGLE_dataset/plain/1", "DATA/Swedish_MINGLE_dataset/GOLD/1")
-            ]
+    to_dos = [
+        ("DATA/Swedish_MINGLE_dataset/plain/1", "DATA/Swedish_MINGLE_dataset/GOLD/1"),
+        ("DATA/Swedish_MINGLE_dataset/plain/2", "DATA/Swedish_MINGLE_dataset/GOLD/2"),
+        ("DATA/Swedish_MINGLE_dataset/plain/3", "DATA/Swedish_MINGLE_dataset/GOLD/3"),
+        ("DATA/Swedish_MINGLE_dataset/plain/4", "DATA/Swedish_MINGLE_dataset/GOLD/4")]
 
-    u = utterances.Utterances(to_do[0][0], to_do[0][1])
-    gold_utterances = u._goldutterances
+    fuzzy_precisions, strict_precisions, fuzzy_recalls, strict_recalls,\
+            fuzzy_f1s, strict_f1s = [], [], [], [], [], []
 
-    utterances_reformatted = []
-    ids = []
+    for to_do in to_dos:
+        print("Finding variation sets in" + to_do[0])
+        u = utterances.Utterances(to_do[0], to_do[1])
+        gold_utterances = u._goldutterances
 
-    for utterance in u._utterances:
-        new_utt = utterance[2].split()
-        utterances_reformatted.append(new_utt)
-        ids.append((utterance[0], utterance[1]))
+        utterances_reformatted = []
+        ids = []
 
-    utt_iter = window(utterances_reformatted, window_eval)
-    id_iter = window(ids, window_eval)
-    ids = [i for i in id_iter]
+        for utterance in u._utterances:
+            new_utt = utterance[2].split()
+            utterances_reformatted.append(new_utt)
+            ids.append((utterance[0], utterance[1]))
 
-    if algorithm == "anch":
-        ids_and_matches = matches_anchor(utt_iter, min_matches, False, ids)
-    else:
-        ids_and_matches = matches_incremental(utt_iter, min_matches, False, ids)
+        utt_iter = window(utterances_reformatted, args[2])
+        id_iter = window(ids, args[2])
+        ids = [i for i in id_iter]
 
-    combined = convert_varseta_format(ids_and_matches)
+        if args[0] == "anch":
+            ids_and_matches = matches_anchor(utt_iter, args[2], args[3], args[4], False, ids)
+        else:
+            ids_and_matches = matches_incremental(utt_iter, args[2], args[3], args[4], False, ids)
 
-    e = evaluation.Evaluation(combined, gold_utterances)
+        combined = convert_varseta_format(ids_and_matches)
+
+        varseta_eval = evaluation.Evaluation(combined, gold_utterances)
+
+        fuzzy_precisions.append(varseta_eval.fuzzy_precision)
+        strict_precisions.append(varseta_eval.strict_precision)
+        fuzzy_recalls.append(varseta_eval.fuzzy_recall)
+        strict_recalls.append(varseta_eval.strict_recall)
+        fuzzy_f1s.append(varseta_eval.fuzzy_f1)
+        strict_f1s.append(varseta_eval.strict_f1)
+
+        print('\tFuzzy Precision: {:0.2f}'.format(varseta_eval.fuzzy_precision))
+        print('\tFuzzy Recall: {:0.2f}'.format(varseta_eval.fuzzy_recall))
+        print('\tFuzzy F1: {:0.2f}'.format(varseta_eval.fuzzy_f1))
+        print('')
+        print('\tStrict Precision: {:0.2f}'.format(varseta_eval.strict_precision))
+        print('\tStrict Recall: {:0.2f}'.format(varseta_eval.strict_recall))
+        print('\tStrict F1: {:0.2f}'.format(varseta_eval.strict_f1))
+        print('\n')
+
+    avg_fuzzy_precision = sum([i for i in fuzzy_precisions])/len(fuzzy_precisions)
+
+    avg_fuzzy_recall = sum([i for i in fuzzy_recalls])/len(fuzzy_recalls)
+    avg_fuzzy_f1 = sum([i for i in fuzzy_f1s])/len(fuzzy_f1s)
+    avg_strict_precision = sum([i for i in strict_precisions])/len(strict_precisions)
+    avg_strict_recall = sum([i for i in strict_recalls])/len(strict_recalls)
+    avg_strict_f1 = sum([i for i in strict_f1s])/len(strict_f1s)
+
+
+    print('Average Scores:')
+    print('Average Fuzzy Precision: {:0.2f}'.format(avg_fuzzy_precision))
+    print('Average Fuzzy Recall: {:0.2f}'.format(avg_fuzzy_recall))
+    print('Average Fuzzy F1: {:0.2f}'.format(avg_fuzzy_f1))
+    print('')
+    print('Average Strict Precision: {:0.2f}'.format(avg_strict_precision))
+    print('Average Strict Recall: {:0.2f}'.format(avg_strict_recall))
+    print('Average Strict F1: {:0.2f}'.format(avg_strict_f1))
 
 
 if __name__ == "__main__":
     main()
-
