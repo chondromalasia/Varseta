@@ -21,6 +21,18 @@ This runs on all of the Gold Standard data in the folders, which currently is ju
 
 The other option would be to substitute `incr` for `anch`, which would use the incremental method.
 
+This simply uses word-level matching. If you want to use either levenstein distance or python's sequence matching then you want to use syntax like so:
+`python2.7 get_accuracy.py incr 3 3 levenshtein 2`
+
+Carefully note the spelling of levenshtein and also that it must be followed by an integar, which indicates the acceptable levenshtein distance
+
+Here is an example for the sequence matcher:
+
+`python2.7 get_accuracy.py anch 3 3 difflib 0.2`
+
+Note that the number following the difflib is a float between 1.0 and 0.0
+
+
 ## Data format
 
 Files should be prepared in a simple .txt format. 4 tab-separated columns. Child directed speech data example:
