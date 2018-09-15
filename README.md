@@ -9,7 +9,13 @@ After cloning the repository, make sure that the data is unzipped if you want to
 
 `gunzip -r *` Answer yes to all of the questions.
 
-### Testing Accuracy
+## Testing
+
+This uses `pytest` and tests can be run with:
+
+`python2.7 test_get_accuracy.py`
+
+### Finding Accuracy
 
 `get_accuracy.py` is the main vehicle for testing the accuracy of the various methods.
 
