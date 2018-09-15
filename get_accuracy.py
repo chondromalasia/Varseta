@@ -147,7 +147,7 @@ def convert_varseta_format(results):
 def decode_args(args):
     """Parses commandline args"""
 
-    exit_text = "Please read notes.txt for command line usage"
+    exit_text = "Please read README.md for command line usage"
 
     if len(args) == 4:
         try:
@@ -170,7 +170,7 @@ def decode_args(args):
         else:
             sys.exit(exit_text)
 
-    sys.exit("Please read notes.txt for command line usage")
+    sys.exit(exit_text)
 
 
 def main():
