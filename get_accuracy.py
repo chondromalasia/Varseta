@@ -199,8 +199,8 @@ def main():
             utterances_reformatted.append(new_utt)
             ids.append((utterance[0], utterance[1]))
 
-        utt_iter = window(utterances_reformatted, args[2])
-        id_iter = window(ids, args[2])
+        utt_iter = window(utterances_reformatted, args[1])
+        id_iter = window(ids, args[1])
         ids = [i for i in id_iter]
 
         if args[0] == "anch":
