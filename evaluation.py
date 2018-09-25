@@ -5,8 +5,8 @@ class Evaluation:
     def __init__(self, variation_sets, gold_sets):
         self.variation_sets = variation_sets
         self.gold_sets = gold_sets
-        self.strict_evaluate()
-        self.fuzzy_evaluate()
+        self.strict_precision, self.strict_recall, self.strict_f1 = self.strict_evaluate()
+        self.fuzzy_precision, self.fuzzy_recall, self.fuzzy_f1 = self.fuzzy_evaluate()
 
     def strict_evaluate(self):
         tp=0
@@ -21,11 +21,8 @@ class Evaluation:
         p=float(tp/(tp+fp+0.0001))
         r=float(tp/(tp+fn+0.0001))
         f=float(2*(p*r)/(p+r+0.0001))
-        # print "\n", "EVALUATION AGAINS THE GOLD STANDARD"
-        # print "\n", "true positives:",tp, ", false positives:", fp, ", false negavites:", fn, "from a total of ", len(self.gold_sets), "GOLD variation sets \n"
-        # print "Strict match Precision = \t", p
-        # print "Strict match Recall = \t", r
-        print "Strict match F-score = \t", f
+
+        return p, r, f
     
     
     def fuzzy_evaluate(self):
@@ -63,8 +60,6 @@ class Evaluation:
         p=float(tp/(tp+fp+0.0001))
         r=float(tp/(tp+fn+0.0001))
         f=float(2*(p*r)/(p+r+0.0001))
-        # print "\n", "true positives:",tp, ", false positives:", fp, ", false negavites:", fn, "from a total of ", l_gold, "GOLD variation sets \n"
-        # print "Fuzzy match  Precision = \t", p
-        # print "Fuzzy match Recall = \t", r
-        print "Fuzzy match F-score = \t", f
+        
+        return p, r, f
 
