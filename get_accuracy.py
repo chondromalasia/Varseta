@@ -177,18 +177,14 @@ def main():
 
     args = decode_args(sys.argv)
 
-    """
     to_dos = [
         ("DATA/Swedish_MINGLE_dataset/plain/1", "DATA/Swedish_MINGLE_dataset/GOLD/1"),
         ("DATA/Swedish_MINGLE_dataset/plain/2", "DATA/Swedish_MINGLE_dataset/GOLD/2"),
         ("DATA/Swedish_MINGLE_dataset/plain/3", "DATA/Swedish_MINGLE_dataset/GOLD/3"),
-        ("DATA/Swedish_MINGLE_dataset/plain/4", "DATA/Swedish_MINGLE_dataset/GOLD/4")]
-    """
-
-    to_dos = [
+        ("DATA/Swedish_MINGLE_dataset/plain/4", "DATA/Swedish_MINGLE_dataset/GOLD/4"),
         ("DATA/Childes/GOLD/French/cleaned/plain",
          "DATA/Childes/GOLD/French/cleaned/annotated")     
-        ]
+]
 
     fuzzy_precisions, strict_precisions, fuzzy_recalls, strict_recalls,\
             fuzzy_f1s, strict_f1s = [], [], [], [], [], []
